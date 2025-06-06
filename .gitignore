@@ -1,0 +1,12 @@
+# Environnement virtuel
+venv/
+
+# Fichiers de configuration
+.env
+
+# Fichiers Python compilés
+__pycache__/
+*.py[cod]
+
+# Autres fichiers à ignorer
+*.log 
