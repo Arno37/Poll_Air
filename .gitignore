@@ -1,22 +1,36 @@
-# Environnement virtuel
+# Ignorer tout le dossier de données (évite les lenteurs et les gros fichiers)
+data/
+
+# Environnement virtuel Python
 venv/
 
-# Fichiers de configuration
+# Fichiers de configuration sensibles
 .env
 
 # Fichiers Python compilés
 __pycache__/
 *.py[cod]
 
+# Dossiers et fichiers d'éditeurs
+.vscode/
+.cursor/
+.DS_Store
+.ipynb_checkpoints/
+
 # Autres fichiers à ignorer
 *.log
+*.zip
+*.tar
+*.gz
+
+# Fichiers de configuration
+.env
+
+# Autres fichiers à ignorer
 *.csv
 *.xlsx
 *.xls
 *.json
 *.parquet
-*.zip
-*.tar
 *.gz
-.DS_Store
 .ipynb_checkpoints/ 
