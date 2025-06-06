@@ -1,0 +1,6 @@
+sqlalchemy
+psycopg2
+pandas 
+selenium
+webdriver-manager
+python-dotenv

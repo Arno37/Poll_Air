@@ -9,4 +9,14 @@ __pycache__/
 *.py[cod]
 
 # Autres fichiers à ignorer
-*.log 
+*.log
+*.csv
+*.xlsx
+*.xls
+*.json
+*.parquet
+*.zip
+*.tar
+*.gz
+.DS_Store
+.ipynb_checkpoints/ 
