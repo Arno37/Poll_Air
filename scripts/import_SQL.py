@@ -14,29 +14,28 @@ database = os.getenv("PG_DATABASE")
 
 # Chaîne de connexion SQLAlchemy
 engine = create_engine(f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}")
+print(engine)
 
-# Colonnes à supprimer
-colonnes_a_supprimer = [
-    "date_maj", "code_zone", "coul_qual", "date_ech",
-    "epsg_reg", "x_reg", "x_wgs84", "y_reg", "y_wgs84", "gml_id2"
-]
+# Dossier contenant les CSV nettoyés
+dossier_nettoyes = "../data/file-indices_nettoyes"
 
-# Dossier contenant les CSV
-dossier = "../data/file-indices_qualite_air-01-01-2024_01-01-2025"
-dossier_sortie = "../data/file-indices_nettoyes"
-os.makedirs(dossier_sortie, exist_ok=True)
-
-# Pour chaque fichier CSV du dossier
-for fichier in os.listdir(dossier):
+# Pour chaque fichier CSV nettoyé
+for fichier in os.listdir(dossier_nettoyes):
     if fichier.endswith(".csv"):
-        chemin = os.path.join(dossier, fichier)
-        print(f"Nettoyage de {chemin} ...")
-        # Lecture du CSV
+        chemin = os.path.join(dossier_nettoyes, fichier)
+        print(f"Import de {chemin} vers PostgreSQL...")
+        
+        # Lecture du CSV nettoyé
         df = pd.read_csv(chemin)
-        # Suppression des colonnes
-        df = df.drop(columns=[col for col in colonnes_a_supprimer if col in df.columns])
-        chemin_sortie = os.path.join(dossier_sortie, fichier)
-        df.to_csv(chemin_sortie, index=False)
-        print(f"Fichier nettoyé sauvegardé : {chemin_sortie}")
+        
+        # Nom de la table (basé sur le nom du fichier)
+        nom_table = f"indices_qualite_{fichier.replace('.csv', '').replace('-', '_')}"
+        
+        try:
+            # Import vers PostgreSQL
+            df.to_sql(nom_table, engine, if_exists='replace', index=False)
+            print(f"✅ Données importées dans la table : {nom_table}")
+        except Exception as e:
+            print(f"❌ Erreur lors de l'import de {fichier} : {e}")
 
-print("Tous les fichiers nettoyés sont dans le dossier file-indices_nettoyes.")
+print("Import vers PostgreSQL terminé.")
