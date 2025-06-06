@@ -1,4 +1,4 @@
-# 🌍 Système de Gestion des Données de Qualité de l'Air
+# 🌍 Pollution Air - Traitement des Données AASQA
 
 Un système complet basé sur Python pour traiter, nettoyer et importer les données françaises de qualité de l'air dans des bases PostgreSQL. Ce projet gère les données AASQA (Associations Agréées de Surveillance de la Qualité de l'Air) avec des pipelines ETL automatisés.
 
@@ -40,7 +40,7 @@ PM/
 1. **Cloner le repository**
    ```bash
    git clone <repository-url>
-   cd PM
+   cd pollution_air
    ```
 
 2. **Configurer l'environnement virtuel**
