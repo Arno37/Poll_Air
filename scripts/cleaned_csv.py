@@ -41,6 +41,23 @@ for fichier in os.listdir(dossier_source):
             print(f"⚠️ Nombre de colonnes incorrect pour {fichier}: {len(df.columns)} colonnes trouvées, {len(nouveaux_noms)} attendues")
             print(f"Colonnes actuelles : {list(df.columns)}")
         
+        # Pour les colonnes texte, supprimer les lignes avec des valeurs manquantes critiques
+        critical_text_cols = ['aasqa', 'date_prise_mesure', 'zone']  # 'zone' est déjà inclus
+        rows_before = len(df)
+        for col in critical_text_cols:
+            if col in df.columns:
+                df = df.dropna(subset=[col])
+        
+        rows_after = len(df)
+        if rows_before != rows_after:
+            print(f"   - {rows_before - rows_after} lignes supprimées (données critiques manquantes)")
+        
+        # Pour les autres colonnes texte, remplacer par une valeur par défaut
+        other_text_cols = ['qualite_air', 'source', 'type_zone']  # Retirer 'zone' d'ici
+        for col in other_text_cols:
+            if col in df.columns:
+                df[col] = df[col].fillna("Inconnu")  # Remplacer par "Inconnu" ou une autre valeur par défaut
+        
         chemin_sortie = os.path.join(dossier_sortie, fichier)
         df.to_csv(chemin_sortie, index=False)
         print(f"Fichier sauvegardé : {chemin_sortie}\n")
