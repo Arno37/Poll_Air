@@ -1,11 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Script pour nettoyer les données scraping-moy_journaliere
-Ces fichiers contiennent des données CSV encapsulées dans du JSON
-avec des structures problématiques à corriger.
-"""
-
 import json
 import os
 import sys

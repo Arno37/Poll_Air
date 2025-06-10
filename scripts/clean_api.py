@@ -7,7 +7,7 @@ def create_output_directory():
     output_dir = os.path.join('..', 'data', 'api-epis_pollution_cleaned')
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-        print(f"Dossier créé : {output_dir}")
+        print(f"✅ Dossier créé : {output_dir}")
     return output_dir
 
 def remove_duplicates(features):
@@ -59,7 +59,7 @@ def clean_json_file(input_filepath, output_dir):
     filename = os.path.basename(input_filepath)
     pollutant = filename.replace('data_', '').replace('.json', '').upper()
     
-    print(f"\nNETTOYAGE DE {pollutant}")
+    print(f"\n🔧 NETTOYAGE DE {pollutant}")
     print("-" * 40)
     
     try:
@@ -70,14 +70,14 @@ def clean_json_file(input_filepath, output_dir):
         original_features = data.get('features', [])
         original_size = os.path.getsize(input_filepath) / 1024 / 1024  # MB
         
-        print(f"Données originales : {len(original_features)} entrées ({original_size:.2f} MB)")
+        print(f"📊 Données originales : {len(original_features)} entrées ({original_size:.2f} MB)")
         
         # Étapes de nettoyage
         features = original_features.copy()
         
         # 1. Supprimer les doublons
         features, duplicates_removed = remove_duplicates(features)
-        print(f"Doublons supprimés : {duplicates_removed}")
+        print(f"🔄 Doublons supprimés : {duplicates_removed}")
         
         # 2. Optimiser les coordonnées
         features = optimize_coordinates(features)
@@ -99,9 +99,9 @@ def clean_json_file(input_filepath, output_dir):
         new_size = os.path.getsize(output_filepath) / 1024 / 1024  # MB
         reduction_percent = ((original_size - new_size) / original_size) * 100 if original_size > 0 else 0
         
-        print(f"Données nettoyées : {len(features)} entrées ({new_size:.2f} MB)")
-        print(f"Réduction de taille : {reduction_percent:.1f}%")
-        print(f"Sauvegardé dans : {output_filepath}")
+        print(f"✅ Données nettoyées : {len(features)} entrées ({new_size:.2f} MB)")
+        print(f"💾 Réduction de taille : {reduction_percent:.1f}%")
+        print(f"📁 Sauvegardé dans : {output_filepath}")
         
         return {
             'pollutant': pollutant,
@@ -115,7 +115,7 @@ def clean_json_file(input_filepath, output_dir):
         }
         
     except Exception as e:
-        print(f"Erreur lors du nettoyage de {pollutant}: {e}")
+        print(f"❌ Erreur lors du nettoyage de {pollutant}: {e}")
         return {
             'pollutant': pollutant,
             'original_entries': 0,
@@ -179,23 +179,34 @@ def generate_cleaning_report(results, output_dir):
         else:
             f.write("Réduction totale : 0.0%\n")
     
-    print(f"Rapport de nettoyage sauvegardé : {report_path}")
+    print(f"\n📋 Rapport de nettoyage sauvegardé : {report_path}")
 
 def main():
     """Fonction principale de nettoyage"""
-    print("SCRIPT DE NETTOYAGE - API EPISODES POLLUTION")
+    print("🚀 SCRIPT DE NETTOYAGE - API EPISODES POLLUTION")
     print("=" * 60)
     
     # Créer le dossier de sortie
-    output_dir = create_output_directory()
+    try:
+        output_dir = create_output_directory()
+        print(f"✅ Dossier de sortie configuré : {output_dir}")
+    except Exception as e:
+        print(f"❌ Erreur création dossier sortie : {e}")
+        return
     
     # Dossier source
     source_dir = os.path.join('..', 'data', 'api-epis_pollution-01-01-2024_01-01-2025')
+    print(f"📂 Recherche dossier source : {source_dir}")
     
     # Vérifier que le dossier source existe
     if not os.path.exists(source_dir):
-        print(f"Dossier source non trouvé : {source_dir}")
+        print(f"❌ Dossier source non trouvé : {source_dir}")
+        # Essayer le chemin absolu
+        abs_source_dir = os.path.abspath(source_dir)
+        print(f"📂 Chemin absolu testé : {abs_source_dir}")
         return
+    
+    print(f"✅ Dossier source trouvé : {source_dir}")
     
     # Fichiers à traiter
     files_to_clean = [
@@ -206,21 +217,29 @@ def main():
         # data_so2.json exclu car données insuffisantes
     ]
     
-    print(f"Dossier source : {source_dir}")
-    print(f"Dossier sortie : {output_dir}")
-    print(f"Fichiers à traiter : {len(files_to_clean)}")
+    print(f"\n📁 Dossier sortie : {output_dir}")
+    print(f"📋 Fichiers à traiter : {len(files_to_clean)}")
+    
+    # Lister les fichiers dans le dossier source
+    try:
+        source_files = os.listdir(source_dir)
+        print(f"📄 Fichiers dans le dossier source : {source_files}")
+    except Exception as e:
+        print(f"❌ Erreur lecture dossier source : {e}")
+        return
     
     results = []
     
     # Nettoyer chaque fichier
     for filename in files_to_clean:
         filepath = os.path.join(source_dir, filename)
+        print(f"\n🔍 Vérification : {filepath}")
         if os.path.exists(filepath):
-            print(f"Traitement : {filename}")
+            print(f"✅ Fichier trouvé : {filename}")
             result = clean_json_file(filepath, output_dir)
             results.append(result)
         else:
-            print(f"Fichier non trouvé : {filepath}")
+            print(f"⚠️ Fichier non trouvé : {filepath}")
             results.append({
                 'pollutant': filename.replace('data_', '').replace('.json', '').upper(),
                 'original_entries': 0,
@@ -234,15 +253,16 @@ def main():
             })
     
     # Générer le rapport final
-    print(f"\nGénération du rapport...")
+    print(f"\n📋 Génération du rapport...")
     generate_cleaning_report(results, output_dir)
     
     # Résumé final
     successful_results = [r for r in results if r['success']]
     
-    print(f"\nNETTOYAGE TERMINÉ !")
-    print(f"Fichiers traités avec succès : {len(successful_results)}/{len(files_to_clean)}")
-    print(f"Fichiers nettoyés disponibles dans : {output_dir}")
+    print(f"\n🎉 NETTOYAGE TERMINÉ !")
+    print(f"✅ Fichiers traités avec succès : {len(successful_results)}/{len(files_to_clean)}")
+    print(f"📁 Fichiers nettoyés disponibles dans : {output_dir}")
+    print(f"📋 Consultez le rapport détaillé : {os.path.join(output_dir, 'rapport_nettoyage.txt')}")
 
 if __name__ == "__main__":
     main()
