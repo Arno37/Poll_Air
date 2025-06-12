@@ -4,3 +4,5 @@ pandas
 selenium
 webdriver-manager
 python-dotenv
+pymongo>=4.0.0
+dnspython>=2.1.0
