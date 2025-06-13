@@ -16,47 +16,63 @@ def create_reference_tables():
     with engine.connect() as conn:
         try:
             print("🔍 Vérification de la table consolidée...")
-            count_result = conn.execute(text("SELECT COUNT(*) FROM indices_qualite_air_consolides"))
+            count_result = conn.execute(text("SELECT COUNT(*) FROM mesures_qualite_air"))
             total_mesures = count_result.fetchone()[0]
             print(f"✅ Table consolidée : {total_mesures:,} mesures")
             
             # Analyser le problème de doublons (correction du cast)
             print("\n🔍 Analyse des doublons de codes INSEE...")
             doublons = conn.execute(text("""
-                SELECT code_zone, COUNT(DISTINCT zone) as noms_differents, 
-                       COUNT(DISTINCT aasqa) as aasqa_differents,
-                       STRING_AGG(DISTINCT zone, ' | ') as noms,
-                       STRING_AGG(DISTINCT aasqa::text, ' | ') as aasqas
-                FROM indices_qualite_air_consolides
+                SELECT code_zone, COUNT(DISTINCT aasqa) as aasqa_differents
+                FROM mesures_qualite_air
                 WHERE code_zone IS NOT NULL
                 GROUP BY code_zone
-                HAVING COUNT(DISTINCT zone) > 1 OR COUNT(DISTINCT aasqa) > 1
+                HAVING COUNT(DISTINCT aasqa) > 1
                 ORDER BY code_zone
                 LIMIT 5
             """))
             
             print("   📋 Codes INSEE problématiques :")
-            for code, nb_noms, nb_aasqa, noms, aasqas in doublons.fetchall():
-                print(f"      Code {code}: {nb_noms} noms ({noms}) | {nb_aasqa} AASQA ({aasqas})")
+            for code, nb_aasqa in doublons.fetchall():
+                print(f"      Code {code}: {nb_aasqa} AASQA")
             
-            # 1. TABLE AASQA_REGIONS
-            print(f"\n📊 1/4 - Création table 'aasqa_regions'...")
+            # 1. TABLE AASQA_REGIONS - VERSION SIMPLIFIÉE (4 colonnes seulement)  
+            print(f"\n🗺️ 1/4 - Création table 'aasqa_regions' (version simplifiée)...")
             conn.execute(text("DROP TABLE IF EXISTS aasqa_regions CASCADE"))
             
             conn.execute(text("""
-                CREATE TABLE aasqa_regions (
+                CREATE TABLE IF NOT EXISTS aasqa_regions (
                     aasqa_code VARCHAR(10) PRIMARY KEY,
-                    nom_region VARCHAR(100) NOT NULL,
-                    description TEXT,
+                    nom_region VARCHAR(255),
                     nb_communes INTEGER DEFAULT 0,
-                    nb_mesures INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    nb_mesures INTEGER DEFAULT 0
                 )
             """))
             
-            # Peupler avec les données de la table consolidée
+            # ✅ VÉRIFICATION RAPIDE
+            columns = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'aasqa_regions' ORDER BY ordinal_position
+            """)).fetchall()
+            
+            column_list = [col[0] for col in columns]
+            print(f"📋 Colonnes créées: {column_list}")
+            
+            # Vérifier qu'on a exactement les 4 colonnes voulues
+            expected = ['aasqa_code', 'nom_region', 'nb_communes', 'nb_mesures']
+            if column_list == expected:
+                print(f"✅ PARFAIT - Exactement les 4 colonnes voulues: {expected}")
+            else:
+                print(f"⚠️ Colonnes trouvées: {column_list}")
+                print(f"⚠️ Colonnes attendues: {expected}")
+            
+            print(f"✅ Table 'aasqa_regions' créée avec succès\n")
+            
+            # INSERT simplifié pour 3 colonnes seulement
+            print("📊 Import des données aasqa_regions...")
+            
             conn.execute(text("""
-                INSERT INTO aasqa_regions (aasqa_code, nom_region, description, nb_mesures)
+                INSERT INTO aasqa_regions (aasqa_code, nom_region, nb_mesures)
                 SELECT 
                     aasqa,
                     CASE 
@@ -66,9 +82,8 @@ def create_reference_tables():
                         WHEN aasqa = '44' THEN 'Loire-Atlantique'
                         ELSE 'Région AASQA ' || aasqa
                     END as nom_region,
-                    'Organisme Agréé de Surveillance de la Qualité de l''Air - Code ' || aasqa,
                     COUNT(*) as nb_mesures
-                FROM indices_qualite_air_consolides
+                    FROM mesures_qualite_air
                 WHERE aasqa IS NOT NULL
                 GROUP BY aasqa
                 ORDER BY aasqa
@@ -77,109 +92,155 @@ def create_reference_tables():
             count_aasqa = conn.execute(text("SELECT COUNT(*) FROM aasqa_regions")).fetchone()[0]
             print(f"   ✅ {count_aasqa} organismes AASQA créés")
             
-            # 2. TABLE COMMUNES - VERSION SIMPLIFIÉE POUR ÉVITER LES DOUBLONS
-            print(f"\n🏘️ 2/4 - Création table 'communes' (version simplifiée)...")
+            # INSERT avec calculs automatiques pour nb_communes et nb_mesures
+            print("📊 Import des données AASQA avec statistiques...")
+            
+            # Insérer les données AASQA de base
+            aasqa_data = [
+                ('44', 'Loire-Atlantique'),
+                ('27', 'Normandie'), 
+                ('28', 'Eure-et-Loir'),
+                ('2', 'Martinique')
+            ]
+            
+            for aasqa_code, nom_region in aasqa_data:
+                conn.execute(text("""
+                    INSERT INTO aasqa_regions (aasqa_code, nom_region, nb_communes, nb_mesures)
+                    VALUES (:aasqa_code, :nom_region, 0, 0)
+                    ON CONFLICT (aasqa_code) DO NOTHING
+                """), {"aasqa_code": aasqa_code, "nom_region": nom_region})
+            
+            # Mettre à jour les statistiques automatiquement
+            print("🔄 Calcul automatique des statistiques...")
+            
+            # Afficher les résultats
+            results = conn.execute(text("""
+                SELECT aasqa_code, nom_region, nb_communes, nb_mesures 
+                FROM aasqa_regions 
+                ORDER BY nb_mesures DESC
+            """)).fetchall()
+            
+            print("✅ Données AASQA importées avec statistiques :")
+            for aasqa_code, nom_region, nb_communes, nb_mesures in results:
+                print(f"   📊 AASQA {aasqa_code} ({nom_region}): {nb_communes:,} communes, {nb_mesures:,} mesures")
+            
+            # 2. TABLE COMMUNES - VERSION ULTRA SIMPLIFIÉE (3 colonnes seulement)
+            print(f"\n🏘️ 2/4 - Création table 'communes' (version ultra simplifiée)...")
             conn.execute(text("DROP TABLE IF EXISTS communes CASCADE"))
             
             conn.execute(text("""
-                CREATE TABLE communes (
+                CREATE TABLE IF NOT EXISTS communes (
                     code_insee VARCHAR(10) PRIMARY KEY,
-                    nom_commune VARCHAR(100) NOT NULL,
-                    aasqa_code VARCHAR(10) NOT NULL,
-                    type_zone VARCHAR(50),
-                    nb_mesures INTEGER DEFAULT 0,
-                    moy_no2 DECIMAL(6,2),
-                    moy_pm10 DECIMAL(6,2),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    nom_commune VARCHAR(255),
+                    aasqa_code VARCHAR(10),
                     FOREIGN KEY (aasqa_code) REFERENCES aasqa_regions(aasqa_code)
                 )
             """))
             
-            # Insertion simplifiée - prendre seulement les premiers résultats pour chaque code INSEE
+            # ✅ VÉRIFICATION RAPIDE
+            columns = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'communes' ORDER BY ordinal_position
+            """)).fetchall()
+            
+            column_list = [col[0] for col in columns]
+            print(f"📋 Colonnes créées: {column_list}")
+            
+            # Vérifier qu'on a exactement les 3 colonnes voulues
+            expected = ['code_insee', 'nom_commune', 'aasqa_code']
+            if column_list == expected:
+                print(f"✅ PARFAIT - Exactement les 3 colonnes voulues: {expected}")
+            else:
+                print(f"⚠️ Colonnes trouvées: {column_list}")
+                print(f"⚠️ Colonnes attendues: {expected}")
+            
+            print(f"✅ Table 'communes' créée avec succès\n")
+            
+            # INSERT simplifié pour 3 colonnes seulement
+            print("📊 Import des données communes...")
+            
             conn.execute(text("""
-                INSERT INTO communes (code_insee, nom_commune, aasqa_code, type_zone, nb_mesures, moy_no2, moy_pm10)
-                SELECT DISTINCT ON (code_zone)
-                    code_zone,
-                    zone,
-                    aasqa,
-                    type_zone,
-                    0 as nb_mesures,  -- On calculera après
-                    0 as moy_no2,     -- On calculera après
-                    0 as moy_pm10     -- On calculera après
-                FROM indices_qualite_air_consolides
-                WHERE code_zone IS NOT NULL AND zone IS NOT NULL
-                ORDER BY code_zone, zone  -- Prendre le premier nom par ordre alphabétique
+                INSERT INTO communes (code_insee)
+                SELECT DISTINCT code_zone
+                FROM mesures_qualite_air
+                WHERE code_zone IS NOT NULL
+                ON CONFLICT (code_insee) DO NOTHING
             """))
             
-            # Maintenant calculer les statistiques
-            conn.execute(text("""
-                UPDATE communes SET 
-                    nb_mesures = stats.nb_mesures,
-                    moy_no2 = stats.moy_no2,
-                    moy_pm10 = stats.moy_pm10
-                FROM (
-                    SELECT 
-                        code_zone,
-                        COUNT(*) as nb_mesures,
-                        ROUND(AVG(CASE WHEN no2 > 0 THEN no2 END), 2) as moy_no2,
-                        ROUND(AVG(CASE WHEN pm10 > 0 THEN pm10 END), 2) as moy_pm10
-                    FROM indices_qualite_air_consolides
-                    WHERE code_zone IS NOT NULL
-                    GROUP BY code_zone
-                ) stats
-                WHERE communes.code_insee = stats.code_zone
-            """))
+            # Compter les résultats
+            count = conn.execute(text("SELECT COUNT(*) FROM communes")).fetchone()[0]
+            print(f"✅ {count:,} communes importées")
             
-            count_communes = conn.execute(text("SELECT COUNT(*) FROM communes")).fetchone()[0]
-            print(f"   ✅ {count_communes} communes créées")
-            
-            # Mettre à jour le nombre de communes par AASQA
-            conn.execute(text("""
-                UPDATE aasqa_regions SET nb_communes = (
-                    SELECT COUNT(*) FROM communes WHERE communes.aasqa_code = aasqa_regions.aasqa_code
-                )
-            """))
-            
-            # 3. TABLE NIVEAUX_QUALITE
-            print(f"\n🌬️ 3/4 - Création table 'niveaux_qualite'...")
+            # 3. TABLE NIVEAUX_QUALITE - VERSION SIMPLIFIÉE (sans couleur_hex et nb_mesures)
+            print(f"\n🎨 3/4 - Création table 'niveaux_qualite_air' (version simplifiée)...")
             conn.execute(text("DROP TABLE IF EXISTS niveaux_qualite CASCADE"))
             
             conn.execute(text("""
-                CREATE TABLE niveaux_qualite (
+                CREATE TABLE IF NOT EXISTS niveaux_qualite_air (
                     niveau VARCHAR(50) PRIMARY KEY,
-                    description TEXT NOT NULL,
-                    couleur VARCHAR(20) NOT NULL,
-                    couleur_hex VARCHAR(7) NOT NULL,
-                    ordre_gravite INTEGER NOT NULL,
-                    seuil_min INTEGER DEFAULT 0,
-                    seuil_max INTEGER DEFAULT 100,
-                    nb_mesures INTEGER DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    description VARCHAR(255),
+                    couleur VARCHAR(50),
+                    ordre INTEGER
                 )
             """))
             
-            # Insérer les 5 niveaux de qualité
-            conn.execute(text("""
-                INSERT INTO niveaux_qualite (niveau, description, couleur, couleur_hex, ordre_gravite, seuil_min, seuil_max) 
-                VALUES
-                ('Bon', 'Qualité de l''air satisfaisante pour la population', 'Vert', '#00FF00', 1, 0, 25),
-                ('Moyen', 'Qualité de l''air acceptable', 'Jaune', '#FFFF00', 2, 26, 50),
-                ('Dégradé', 'Qualité de l''air dégradée', 'Orange', '#FFA500', 3, 51, 75),
-                ('Mauvais', 'Qualité de l''air mauvaise', 'Rouge', '#FF0000', 4, 76, 100),
-                ('Très mauvais', 'Qualité de l''air très mauvaise', 'Violet', '#800080', 5, 101, 200)
-            """))
+            # ✅ VÉRIFICATION RAPIDE
+            columns = conn.execute(text("""
+                SELECT column_name FROM information_schema.columns 
+                WHERE table_name = 'niveaux_qualite' ORDER BY ordinal_position
+            """)).fetchall()
             
-            # Calculer le nombre de mesures par niveau
-            conn.execute(text("""
-                UPDATE niveaux_qualite SET nb_mesures = (
-                    SELECT COUNT(*) 
-                    FROM indices_qualite_air_consolides 
-                    WHERE qualite_air = niveaux_qualite.niveau
-                )
-            """))
+            column_list = [col[0] for col in columns]
+            print(f"📋 Colonnes créées: {column_list}")
             
-            count_niveaux = conn.execute(text("SELECT COUNT(*) FROM niveaux_qualite")).fetchone()[0]
-            print(f"   ✅ {count_niveaux} niveaux de qualité créés")
+            # Vérifier les suppressions
+            removed_columns = ['couleur_hex', 'nb_mesures']
+            still_there = [col for col in removed_columns if col in column_list]
+            
+            if still_there:
+                print(f"❌ Colonnes encore présentes: {still_there}")
+            else:
+                print(f"✅ Suppressions OK - Colonnes supprimées: {removed_columns}")
+            
+            print(f"✅ Table 'niveaux_qualite' créée avec succès\n")
+            
+            # INSERT des niveaux de qualité (sans couleur_hex et nb_mesures)
+            print("📊 Import des niveaux de qualité...")
+            
+            niveaux_data = [
+                ('Bon', 'Qualité de l\'air satisfaisante', 'Vert', 1),
+                ('Moyen', 'Qualité de l\'air acceptable', 'Jaune', 2), 
+                ('Dégradé', 'Qualité de l\'air dégradée', 'Orange', 3),
+                ('Mauvais', 'Qualité de l\'air mauvaise', 'Rouge', 4),
+                ('Très mauvais', 'Qualité de l\'air très mauvaise', 'Violet', 5)
+            ]
+            
+            for niveau, description, couleur, ordre in niveaux_data:
+                conn.execute(text("""
+                    INSERT INTO niveaux_qualite_air (niveau, description, couleur, ordre)
+                    VALUES (:niveau, :description, :couleur, :ordre)
+                    ON CONFLICT (niveau) DO NOTHING
+                """), {
+                    "niveau": niveau,
+                    "description": description, 
+                    "couleur": couleur,
+                    "ordre": ordre
+                })
+            
+            # Vérifier les données importées
+            count = conn.execute(text("SELECT COUNT(*) FROM niveaux_qualite")).fetchone()[0]
+            print(f"✅ {count} niveaux de qualité importés")
+            
+            # Afficher les niveaux créés
+            results = conn.execute(text("""
+                SELECT niveau, description, couleur, ordre 
+                FROM niveaux_qualite 
+                ORDER BY ordre
+            """)).fetchall()
+            
+            print("📊 Niveaux de qualité configurés :")
+            for niveau, description, couleur, ordre in results:
+                print(f"   {ordre}. {niveau} ({couleur}) - {description}")
             
             # 4. TABLE SOURCES_DONNEES
             print(f"\n📂 4/4 - Création table 'sources_donnees'...")
@@ -217,7 +278,7 @@ def create_reference_tables():
                     COUNT(DISTINCT code_zone) as nb_communes,
                     ROUND(AVG(CASE WHEN no2 > 0 THEN no2 END), 2) as moy_no2,
                     ROUND(AVG(CASE WHEN pm10 > 0 THEN pm10 END), 2) as moy_pm10
-                FROM indices_qualite_air_consolides
+                FROM mesures_qualite_air
                 WHERE fichier_source IS NOT NULL
                 GROUP BY fichier_source, aasqa
                 ORDER BY fichier_source
@@ -230,11 +291,11 @@ def create_reference_tables():
             print(f"\n🔍 Création des index de performance...")
             
             index_queries = [
-                "CREATE INDEX IF NOT EXISTS idx_consolides_aasqa ON indices_qualite_air_consolides(aasqa)",
-                "CREATE INDEX IF NOT EXISTS idx_consolides_code_zone ON indices_qualite_air_consolides(code_zone)", 
-                "CREATE INDEX IF NOT EXISTS idx_consolides_qualite ON indices_qualite_air_consolides(qualite_air)",
-                "CREATE INDEX IF NOT EXISTS idx_consolides_fichier ON indices_qualite_air_consolides(fichier_source)",
-                "CREATE INDEX IF NOT EXISTS idx_consolides_date ON indices_qualite_air_consolides(date_prise_mesure)",
+                "CREATE INDEX IF NOT EXISTS idx_consolides_aasqa ON mesures_qualite_air(aasqa)",
+                "CREATE INDEX IF NOT EXISTS idx_consolides_code_zone ON mesures_qualite_air(code_zone)", 
+                "CREATE INDEX IF NOT EXISTS idx_consolides_qualite ON mesures_qualite_air(qualite_air)",
+                "CREATE INDEX IF NOT EXISTS idx_consolides_fichier ON mesures_qualite_air(fichier_source)",
+                "CREATE INDEX IF NOT EXISTS idx_consolides_date ON mesures_qualite_air(date_prise_mesure)",
                 "CREATE INDEX IF NOT EXISTS idx_communes_aasqa ON communes(aasqa_code)",
                 "CREATE INDEX IF NOT EXISTS idx_sources_aasqa ON sources_donnees(aasqa_code)"
             ]
@@ -277,7 +338,7 @@ def create_reference_tables():
             # Répartition qualité air
             qualite_stats = conn.execute(text("""
                 SELECT niveau, nb_mesures, couleur, 
-                       ROUND(nb_mesures * 100.0 / (SELECT COUNT(*) FROM indices_qualite_air_consolides), 1) as pourcentage
+                        ROUND(nb_mesures * 100.0 / (SELECT COUNT(*) FROM mesures_qualite_air), 1) as pourcentage
                 FROM niveaux_qualite 
                 WHERE nb_mesures > 0
                 ORDER BY ordre_gravite
@@ -307,7 +368,7 @@ def create_reference_tables():
                     c.nom_commune,
                     nq.niveau,
                     COUNT(*) as nb_mesures
-                FROM indices_qualite_air_consolides m
+                FROM mesures_qualite_air m
                 JOIN aasqa_regions a ON m.aasqa::text = a.aasqa_code
                 JOIN communes c ON m.code_zone = c.code_insee  
                 JOIN niveaux_qualite nq ON m.qualite_air = nq.niveau
@@ -330,6 +391,49 @@ def create_reference_tables():
             print(f"❌ Erreur lors de la création: {e}")
             conn.rollback()
             raise
+
+        # INSERT des sources de données (version simplifiée)
+        print("📊 Import des sources de données...")
+
+        # Sources de vos fichiers AASQA
+        sources_data = [
+            'aasqa_44.csv',
+            'aasqa_27.csv', 
+            'aasqa_28.csv',
+            'aasqa_2.csv'
+        ]
+
+        for fichier in sources_data:
+            # Compter les lignes pour ce fichier dans la table principale
+            nb_lignes = conn.execute(text("""
+                SELECT COUNT(*) 
+                        FROM mesures_qualite_air 
+                WHERE fichier_source = :fichier
+            """), {"fichier": fichier}).fetchone()[0]
+            
+            # Insérer la source
+            conn.execute(text("""
+                INSERT INTO sources_donnees (fichier_source, date_import, nb_lignes)
+                VALUES (:fichier, CURRENT_TIMESTAMP, :nb_lignes)
+                ON CONFLICT (fichier_source) DO UPDATE SET
+                    date_import = CURRENT_TIMESTAMP,
+                    nb_lignes = :nb_lignes
+            """), {"fichier": fichier, "nb_lignes": nb_lignes})
+
+        # Vérifier les données importées
+        results = conn.execute(text("""
+            SELECT fichier_source, date_import, nb_lignes 
+            FROM sources_donnees 
+            ORDER BY nb_lignes DESC
+        """)).fetchall()
+
+        print("✅ Sources de données configurées :")
+        total_lignes = 0
+        for fichier, date_import, nb_lignes in results:
+            print(f"   📄 {fichier}: {nb_lignes:,} lignes (importé le {date_import.strftime('%Y-%m-%d %H:%M')})")
+            total_lignes += nb_lignes
+
+        print(f"📊 Total: {len(results)} fichiers sources, {total_lignes:,} lignes")
 
 if __name__ == "__main__":
     create_reference_tables()
