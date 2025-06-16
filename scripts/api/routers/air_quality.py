@@ -19,7 +19,6 @@ DATABASE_CONFIG = {
 # Configuration MongoDB
 MONGO_CLIENT = MongoClient(os.getenv("MONGO_CONNECTION_STRING"))
 MONGO_DB = MONGO_CLIENT[os.getenv("MONGO_DATABASE")]
-print(MONGO_CLIENT)
 
 router = APIRouter(prefix="/qualite-air", tags=["Qualité de l'air"])
 
@@ -66,16 +65,25 @@ def get_mesures_by_commune(code_insee: str):
     except Exception as e:
         return {"error": f"Erreur BDD: {str(e)}"}
     
-@router.get("/mongodb-data")
-def get_mongodb_data():
+@router.get("/episodes-pollution")
+def get_episodes_pollution():
     try:
-        # Accès à une collection (par exemple "mesures")
-        collection = MONGO_DB["EPIS_POLLUTION"]  
-        
-        # Requête MongoDB (équivalent SELECT * FROM table)
+        collection = MONGO_DB["EPIS_POLLUTION"]
         documents = list(collection.find({}))
         
-        # Conversion des ObjectId en string pour JSON
+        for doc in documents:
+            doc["_id"] = str(doc["_id"])
+            
+        return documents
+    except Exception as e:
+        return {"error": f"Erreur MongoDB: {str(e)}"}
+    
+@router.get("/episodes-pollution/{polluant}")
+def get_episodes_by_polluant(polluant: str):
+    try:
+        collection = MONGO_DB["EPIS_POLLUTION"]
+        documents = list(collection.find({"polluant": polluant.upper()}))
+        
         for doc in documents:
             doc["_id"] = str(doc["_id"])
             

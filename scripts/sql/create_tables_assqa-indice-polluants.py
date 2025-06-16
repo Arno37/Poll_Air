@@ -84,40 +84,28 @@ def create_architecture_tables():
             # 3. TABLE POLLUANTS
             print(f"\n🧪 3/3 - Création table 'polluants'...")
             conn.execute(text("DROP TABLE IF EXISTS polluants CASCADE"))
-            
             conn.execute(text("""
                 CREATE TABLE polluants (
                     code_polluant VARCHAR(10) PRIMARY KEY,
                     nom_polluant VARCHAR(100),
-                    unite_mesure VARCHAR(20),
-                    seuil_information DECIMAL(8,2),
-                    seuil_alerte DECIMAL(8,2),
-                    description TEXT
+                    unite_mesure VARCHAR(20)
                 )
             """))
-            
-            # INSERT des polluants
+              # INSERT des polluants
             polluants_data = [
-                ('NO2', 'Dioxyde d\'azote', 'µg/m³', 200.0, 400.0, 
-                 'Gaz irritant émis par les véhicules et installations de combustion'),
-                ('PM10', 'Particules fines PM10', 'µg/m³', 50.0, 80.0,
-                 'Particules en suspension de diamètre inférieur à 10 micromètres'),
-                ('PM25', 'Particules fines PM2.5', 'µg/m³', 25.0, 50.0,
-                 'Particules très fines de diamètre inférieur à 2,5 micromètres'),
-                ('O3', 'Ozone', 'µg/m³', 180.0, 240.0,
-                 'Polluant secondaire formé par réaction photochimique'),
-                ('SO2', 'Dioxyde de soufre', 'µg/m³', 300.0, 500.0,
-                 'Gaz émis principalement par les activités industrielles')
+                ('NO2', 'Dioxyde d\'azote', 'µg/m³'),
+                ('PM10', 'Particules fines PM10', 'µg/m³'),
+                ('PM2.5', 'Particules fines PM2.5', 'µg/m³'),
+                ('O3', 'Ozone', 'µg/m³'),
+                ('SO2', 'Dioxyde de soufre', 'µg/m³')
             ]
             
-            for code, nom, unite, seuil_info, seuil_alerte, desc in polluants_data:
+            for code, nom, unite in polluants_data:
                 conn.execute(text("""
-                    INSERT INTO polluants (code_polluant, nom_polluant, unite_mesure, 
-                                          seuil_information, seuil_alerte, description)
-                    VALUES (:code, :nom, :unite, :seuil_info, :seuil_alerte, :desc)
+                    INSERT INTO polluants (code_polluant, nom_polluant, unite_mesure)
+                    VALUES (:code, :nom, :unite)
                 """), {
-                    "code": code, "nom": nom, "unite": unite,
-                    "seuil_info": seuil_info, "seuil_alerte": seuil_alerte, "desc": desc
+                    "code": code, "nom": nom, "unite": unite
                 })
             
             count_polluants = conn.execute(text("SELECT COUNT(*) FROM polluants")).fetchone()[0]
@@ -147,7 +135,6 @@ def create_architecture_tables():
             polluants = conn.execute(text("SELECT code_polluant, nom_polluant, unite_mesure FROM polluants ORDER BY code_polluant")).fetchall()
             for code, nom, unite in polluants:
                 print(f"   {code}: {nom} ({unite})")
-            
             print(f"\n✅ 3 tables architecturales opérationnelles")
             print(f"✅ Prêt pour l'import des données principales")
             
