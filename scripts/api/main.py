@@ -4,8 +4,16 @@ from routers.auth import router as auth_router
 
 # Création de l'app
 app = FastAPI(
-    title="🌬️ API Qualité de l'Air",
-    description="API de consultation des données de pollution en France et Métropole",
+   title="🌬️ API Qualité de l'Air",
+    description="""
+    API de consultation des données de pollution atmosphérique en France et Métropole.
+    
+    **Sources de données:**
+    - PostgreSQL : Indices de qualité de l'air par station
+    - MongoDB : Épisodes de pollution géolocalisés
+    
+    **Authentification:** JWT Bearer Token
+    """,
     version="1.0.0"
 )
 

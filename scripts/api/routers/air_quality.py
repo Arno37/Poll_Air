@@ -1,4 +1,6 @@
 from fastapi import Depends, APIRouter
+from pydantic import BaseModel
+from typing import List, Dict, Any
 import os
 from dotenv import load_dotenv
 import psycopg2
@@ -7,6 +9,17 @@ from pymongo import MongoClient
 from routers.auth import get_current_user
 
 load_dotenv()
+class QualiteAirResponse(BaseModel):
+    message: str
+    count: int
+    data: List[Dict[str, Any]]
+
+class EpisodeResponse(BaseModel):
+    message: str
+    user: str
+    role: str
+    count: int
+    data: List[Dict[str, Any]]
 
 # Configuration PG
 DATABASE_CONFIG = {
@@ -26,7 +39,12 @@ router = APIRouter(prefix="/qualite-air", tags=["Qualité de l'air"])
 
 @router.get("/qualite-air",
     summary="📊 Données publiques",
-    description="Accès libre aux informations de base",)
+    description="Accès libre aux informations de base",
+    response_model=QualiteAirResponse,
+    responses={
+        200: {"description": "Données récupérées avec succès"},
+        500: {"description": "Erreur de base de données"}
+    })
 def get_qualite_air_public():
     """Accès libre - Données de qualité de l'air (PostgreSQL)"""
     try:
@@ -45,7 +63,7 @@ def get_qualite_air_public():
         return {"error": f"Erreur BDD: {str(e)}"}
 
 @router.get("/episodes-pollution", 
-    summary="🔒 Épisodes de pollution",
+    summary="🔒 Données privées",
     description="Données MongoDB - Authentification requise",
     )
 def get_episodes_pollution_private(current_user: dict = Depends(get_current_user)):
