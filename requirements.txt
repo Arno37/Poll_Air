@@ -6,3 +6,6 @@ webdriver-manager
 python-dotenv
 pymongo>=4.0.0
 dnspython>=2.1.0
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
