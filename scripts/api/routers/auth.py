@@ -22,7 +22,7 @@ NORMAL_USER = os.getenv("NORMAL_USER").split(":")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
-router = APIRouter(prefix="/auth", tags=["Authentification"])
+router = APIRouter(prefix="/auth")
 
 # Modèles Pydantic
 class LoginRequest(BaseModel):

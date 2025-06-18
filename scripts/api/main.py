@@ -1,26 +1,45 @@
 from fastapi import FastAPI
-from routers.air_quality import router as qualite_air_router
-from routers.auth import router as auth_router
+from fastapi.middleware.cors import CORSMiddleware
+from routers import air_quality, auth
+from security.rate_limiting import setup_rate_limiting
 
-# Création de l'app
 app = FastAPI(
-   title="🌬️ API Qualité de l'Air",
+    title="🌐 API Qualité de l'Air - Sécurisée OWASP",
     description="""
     API de consultation des données de pollution atmosphérique en France et Métropole.
     
-    **Sources de données:**
-    - PostgreSQL : Indices de qualité de l'air par station
-    - MongoDB : Épisodes de pollution géolocalisés
+    ## 🔒 Authentification
+    - **Accès libre** : Données de base PostgreSQL
+    - **Accès privé** : Données MongoDB (JWT requis)
+        
+    ## 📊 Sources de données
+    - **PostgreSQL** : Table `qualite_air` avec indices de qualité par station
+    - **MongoDB** : Collection d'épisodes de pollution géolocalisés
     
-    **Authentification:** JWT Bearer Token
+    ## 🛡️ Sécurité OWASP
+    - JWT Authentication : Contrôle d'accès
+    - Rate Limiting : Protection anti-DDoS
+    - Input Validation : Protection injection SQL
+    
     """,
-    version="1.0.0"
+    version="1.0.0",
 )
 
-# 🔗 INCLUSION DU ROUTER (étape cruciale)
-app.include_router(auth_router)
-app.include_router(qualite_air_router)
+# Configuration Rate Limiting
+setup_rate_limiting(app)
 
+# Configuration CORS basique
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Routes
+app.include_router(auth.router, prefix="/auth", tags=["🔒 Authentification"])
+app.include_router(air_quality.router, prefix="/api", tags=["🌐 Qualité de l'Air"])
 
 
 if __name__ == "__main__":
