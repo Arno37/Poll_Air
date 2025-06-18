@@ -9,3 +9,4 @@ dnspython>=2.1.0
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
+pip-audit
