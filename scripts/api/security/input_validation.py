@@ -1,8 +1,3 @@
-"""
-OWASP API Security Top 10 - API6: Mass Assignment & API8: Injection
-Validation des entrées utilisateur et protection contre l'injection
-"""
-
 from pydantic import BaseModel, validator
 from typing import Optional
 import re

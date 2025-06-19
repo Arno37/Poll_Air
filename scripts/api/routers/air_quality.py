@@ -9,7 +9,7 @@ from pymongo import MongoClient
 from routers.auth import get_current_user
 from security.rate_limiting import public_rate_limit, private_rate_limit
 from security.input_validation import QualiteAirQuery, EpisodesQuery
-
+from logger import log_api_call
 
 load_dotenv()
 class QualiteAirResponse(BaseModel):
@@ -55,6 +55,7 @@ def get_qualite_air_public(
 ):
     """Accès libre - Données de qualité de l'air (PostgreSQL)"""
     try:
+        log_api_call("/api/qualite-air", "anonymous", query.dict()) 
         conn = psycopg2.connect(**DATABASE_CONFIG)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
@@ -86,7 +87,9 @@ def get_qualite_air_public(
             "data": list(mesures)
         }
     except Exception as e:
+        log_api_call("/api/qualite-air", "anonymous", query.dict(), success=False)
         return {"error": f"Erreur BDD: {str(e)}"}
+    
 
 @router.get("/episodes-pollution", 
     summary="🔒 Données privées",
@@ -100,6 +103,8 @@ def get_episodes_pollution_private(
 ):
     """Accès protégé - Épisodes de pollution (MongoDB)"""
     try:
+        log_api_call("/api/episodes-pollution", current_user["username"], query.dict())
+
         collection = MONGO_DB["EPIS_POLLUTION"]
         
         # Construction sécurisée de la requête MongoDB
@@ -130,5 +135,5 @@ def get_episodes_pollution_private(
             "data": documents
         }
     except Exception as e:
+        log_api_call("/api/episodes-pollution", current_user["username"], query.dict(), success=False)
         return {"error": f"Erreur MongoDB: {str(e)}"}
-

@@ -1,8 +1,3 @@
-"""
-OWASP API Security Top 10 - API4: Lack of Resources & Rate Limiting
-Protection contre les attaques par déni de service (DDoS)
-"""
-
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded

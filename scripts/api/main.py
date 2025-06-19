@@ -4,7 +4,7 @@ from routers import air_quality, auth
 from security.rate_limiting import setup_rate_limiting
 
 app = FastAPI(
-    title="🌐 API Qualité de l'Air - Sécurisée OWASP",
+    title="API Qualité de l'Air - Sécurisée OWASP",
     description="""
     API de consultation des données de pollution atmosphérique en France et Métropole.
     
@@ -38,10 +38,10 @@ app.add_middleware(
 )
 
 # Routes
-app.include_router(auth.router, prefix="/auth", tags=["🔒 Authentification"])
-app.include_router(air_quality.router, prefix="/api", tags=["🌐 Qualité de l'Air"])
+app.include_router(auth.router, prefix="/auth", tags=["Authentification"])
+app.include_router(air_quality.router, prefix="/api", tags=["Qualité de l'Air"])
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8001)
