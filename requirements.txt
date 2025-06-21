@@ -1,12 +1,26 @@
+# ========== API FastAPI ==========
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+
+# ========== Base de données ==========
 sqlalchemy
-psycopg2
-pandas 
-selenium
-webdriver-manager
-python-dotenv
+psycopg2-binary
 pymongo>=4.0.0
 dnspython>=2.1.0
+
+# ========== Sécurité & Auth ==========
 python-jose[cryptography]
 passlib[bcrypt]
 python-multipart
+
+# ========== Utilitaires ==========
+python-dotenv
+pandas
+
+# ========== Scraping (si utilisé) ==========
+selenium
+webdriver-manager
+
+# ========== Audit sécurité ==========
 pip-audit

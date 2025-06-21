@@ -6,7 +6,6 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
-from logger import log_login
 
 load_dotenv()
 
@@ -23,7 +22,7 @@ NORMAL_USER = os.getenv("NORMAL_USER").split(":")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 security = HTTPBearer()
 
-router = APIRouter(prefix="/auth")
+router = APIRouter(prefix="/auth", tags=["Authentification"])
 
 # Modèles Pydantic
 class LoginRequest(BaseModel):
@@ -85,12 +84,10 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 def login(login_data: LoginRequest):
     user = authenticate_user(login_data.username, login_data.password)
     if not user:
-        log_login(login_data.username, success=False)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Nom d'utilisateur ou mot de passe incorrect"
         )
     
     access_token = create_access_token(data={"sub": user["username"]})
-    log_login(login_data.username, success=True)
     return {"access_token": access_token, "token_type": "bearer"}

@@ -14,13 +14,14 @@ def create_architecture_tables():
     print("=" * 50)
     
     with engine.connect() as conn:
-        try:            # 1. TABLE ASSQA_REGIONS
-            print(f"\n🗺️ 1/3 - Création table 'assqa_regions'...")
-            conn.execute(text("DROP TABLE IF EXISTS assqa_regions CASCADE"))
+        try:
+            # 1. TABLE AASQA_REGIONS
+            print(f"\n🗺️ 1/3 - Création table 'aasqa_regions'...")
+            conn.execute(text("DROP TABLE IF EXISTS aasqa_regions CASCADE"))
             
             conn.execute(text("""
-                CREATE TABLE assqa_regions (
-                    assqa_code VARCHAR(10) PRIMARY KEY,
+                CREATE TABLE aasqa_regions (
+                    aasqa_code VARCHAR(10) PRIMARY KEY,
                     nom_region VARCHAR(255),
                     nb_communes INTEGER DEFAULT 0,
                     nb_mesures INTEGER DEFAULT 0
@@ -37,11 +38,11 @@ def create_architecture_tables():
             
             for aasqa_code, nom_region in aasqa_data:
                 conn.execute(text("""
-                    INSERT INTO assqa_regions (assqa_code, nom_region)
+                    INSERT INTO aasqa_regions (aasqa_code, nom_region)
                     VALUES (:aasqa_code, :nom_region)
                 """), {"aasqa_code": aasqa_code, "nom_region": nom_region})
             
-            count_aasqa = conn.execute(text("SELECT COUNT(*) FROM assqa_regions")).fetchone()[0]
+            count_aasqa = conn.execute(text("SELECT COUNT(*) FROM aasqa_regions")).fetchone()[0]
             print(f"   ✅ {count_aasqa} régions AASQA créées")
             
             # 2. TABLE INDICE (niveaux de qualité)
@@ -116,9 +117,10 @@ def create_architecture_tables():
             # VÉRIFICATION FINALE
             print(f"\n🎉 ARCHITECTURE CRÉÉE AVEC SUCCÈS !")
             print("-" * 40)
-              # Afficher les régions AASQA
+            
+            # Afficher les régions AASQA
             print("🗺️ RÉGIONS AASQA :")
-            regions = conn.execute(text("SELECT assqa_code, nom_region FROM assqa_regions ORDER BY assqa_code")).fetchall()
+            regions = conn.execute(text("SELECT aasqa_code, nom_region FROM aasqa_regions ORDER BY aasqa_code")).fetchall()
             for code, nom in regions:
                 print(f"   {code}: {nom}")
             
