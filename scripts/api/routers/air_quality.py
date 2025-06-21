@@ -54,7 +54,21 @@ router = APIRouter(prefix="/qualite-air")
 
 # ========== FUNCTIONS HELPERS ==========
 def require_admin_role(current_user: dict = Depends(get_current_user)):
-    """Vérification rôle administrateur"""
+    """
+    Vérification du rôle administrateur pour les opérations sensibles.
+    
+    Contrôle d'accès pour les endpoints nécessitant des privilèges administrateur.
+    Utilisé pour la création/modification de stations, paramètres système, etc.
+    
+    Args:
+        current_user (dict): Utilisateur actuel authentifié via JWT
+        
+    Returns:
+        dict: Données utilisateur si admin
+        
+    Raises:
+        HTTPException: 403 si l'utilisateur n'est pas administrateur
+    """
     if current_user.get("role") != "admin":
         raise HTTPException(
             status_code=403,
@@ -76,28 +90,52 @@ def get_qualite_air_public(
     request: Request,
     query: QualiteAirQuery = Depends()
 ):
-    """Accès libre - Données de qualité de l'air (PostgreSQL)"""
+    """
+    Endpoint public pour consultation des données de qualité de l'air.
+    
+    Accès libre aux mesures de pollution issues de PostgreSQL.
+    Permet la découverte du service et l'attraction d'utilisateurs.
+    
+    Args:
+        request: Objet Request FastAPI
+        query: Paramètres de filtrage validés (code INSEE, polluant, station, limite)
+        
+    Returns:
+        dict: Données de pollution filtrées avec métadonnées
+        
+    Filtres disponibles:
+        - code_insee: Code postal/INSEE de la commune
+        - code_polluant: Type de polluant (PM10, PM25, NO2, O3, SO2)
+        - station: Nom partiel de la station de mesure
+        - limit: Nombre maximum de résultats (défaut: 50, max: 100)
+    """
     try:
+        # Logging de l'appel API pour monitoring et analytics
         log_api_call("/api/qualite-air/qualite-air", "anonymous", query.dict()) 
+        
+        # Connexion à la base de données PostgreSQL
         conn = psycopg2.connect(**DATABASE_CONFIG)
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Construction sécurisée de la requête
+        # Construction sécurisée de la requête SQL avec filtres optionnels
+        # Base query avec jointure implicite sur table qualite_air
         sql = "SELECT id, code_insee, code_polluant, valeur, qualite_globale, station_nom FROM qualite_air WHERE 1=1"
         params = {}
         
+        # Application des filtres selon les paramètres fournis
         if query.code_insee:
-            sql += " AND code_insee = %(code_insee)s"
+            sql += " AND code_insee = %(code_insee)s"  # Filtrage par commune
             params['code_insee'] = query.code_insee
             
         if query.code_polluant:
-            sql += " AND code_polluant = %(code_polluant)s"
+            sql += " AND code_polluant = %(code_polluant)s"  # Filtrage par type de polluant
             params['code_polluant'] = query.code_polluant
             
         if query.station:
-            sql += " AND station_nom ILIKE %(station)s"
+            sql += " AND station_nom ILIKE %(station)s"  # Recherche partielle sur nom station
             params['station'] = f"%{query.station}%"
         
+        # Limitation du nombre de résultats pour performance
         sql += f" LIMIT {query.limit}"
         
         cursor.execute(sql, params)

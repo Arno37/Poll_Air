@@ -1,9 +1,40 @@
+"""
+Module de validation et sécurisation des entrées utilisateur.
+
+Ce module fournit des classes Pydantic pour valider les paramètres des requêtes
+API et des fonctions pour sécuriser les données contre les injections SQL.
+
+Classes:
+    QualiteAirQuery: Validation des paramètres pour les endpoints de qualité de l'air
+    EpisodesQuery: Validation des paramètres pour les endpoints d'épisodes de pollution
+
+Functions:
+    secure_sql_params: Sécurisation des paramètres SQL contre l'injection
+"""
+
 from pydantic import BaseModel, validator
 from typing import Optional
 import re
 
 class QualiteAirQuery(BaseModel):
-    """Validation pour les requêtes de qualité de l'air"""
+    """
+    Modèle de validation pour les requêtes de qualité de l'air.
+    
+    Valide et sécurise les paramètres d'entrée pour les endpoints
+    qui récupèrent des données de pollution atmosphérique.
+    
+    Attributes:
+        code_insee (str, optional): Code INSEE commune (5 chiffres)
+        code_polluant (str, optional): Code polluant ('PM10', 'PM25', 'NO2', 'O3', 'SO2')
+        station (str, optional): Nom de la station de mesure (max 100 chars)
+        limit (int, optional): Nombre max de résultats (1-100, défaut: 50)
+        
+    Validators:
+        - code_insee: Format 5 chiffres exactement
+        - code_polluant: Liste fermée des polluants autorisés
+        - station: Longueur limitée pour éviter l'overflow
+        - limit: Borne les résultats pour éviter la surcharge serveur
+    """
     code_insee: Optional[str] = None
     code_polluant: Optional[str] = None
     station: Optional[str] = None
@@ -35,7 +66,23 @@ class QualiteAirQuery(BaseModel):
         return v
 
 class EpisodesQuery(BaseModel):
-    """Validation pour les requêtes d'épisodes de pollution"""
+    """
+    Modèle de validation pour les requêtes d'épisodes de pollution.
+    
+    Valide les paramètres pour rechercher des épisodes de pollution
+    dans la base de données des associations AASQA.
+    
+    Attributes:
+        aasqa (str, optional): Code AASQA (lettres/chiffres, max 10 chars)
+        date_debut (str, optional): Date début période (format YYYY-MM-DD)
+        date_fin (str, optional): Date fin période (format YYYY-MM-DD)
+        limit (int, optional): Nombre max résultats (1-50, défaut: 20)
+        
+    Validators:
+        - aasqa: Format alphanumérique strict
+        - dates: Format ISO strict (YYYY-MM-DD)
+        - limit: Borné plus strictement que qualité air (épisodes moins fréquents)
+    """
     aasqa: Optional[str] = None
     date_debut: Optional[str] = None
     date_fin: Optional[str] = None
@@ -61,8 +108,25 @@ class EpisodesQuery(BaseModel):
 
 def secure_sql_params(query_dict: dict) -> dict:
     """
-    Sécurise les paramètres SQL contre l'injection
-    Échappe les caractères dangereux
+    Sécurise les paramètres SQL contre les injections et attaques.
+    
+    Cette fonction applique un échappement basique des caractères dangereux
+    dans les paramètres qui seront utilisés dans des requêtes SQL.
+    
+    Args:
+        query_dict (dict): Dictionnaire des paramètres de requête
+        
+    Returns:
+        dict: Paramètres sécurisés avec caractères dangereux échappés
+        
+    Security Measures:
+        - Échappement des guillemets simples (protection injection SQL)
+        - Suppression des points-virgules (prévention requêtes multiples)
+        - Conversion en chaîne pour éviter l'injection par type
+        
+    Note:
+        Cette fonction fournit une protection basique. L'utilisation de
+        requêtes préparées (parameterized queries) reste la méthode recommandée.
     """
     secured_params = {}
     for key, value in query_dict.items():

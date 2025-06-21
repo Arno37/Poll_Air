@@ -5,32 +5,31 @@ from security.rate_limiting import setup_rate_limiting
 from routers import air_quality, auth, profils
 
 app = FastAPI(
-    title="🌍 API Qualité de l'Air - Multi-Sources",
+    title="API Poll'Air - Multi-Sources",
     description="""
-    **API de données pollution atmosphérique en France et territoitre Outre-Mer**
+    API de données pollution atmosphérique en France et territoires d'Outre-Mer
     
-    ## 🎯 **PARCOURS UTILISATEUR OPTIMISÉ**
     
-    ### 🆓 **ÉTAPE 1 (Accès libre)**
-    - 📊 **Données pollution de base** : Consultez la qualité de l'air
-    - 📈 **Historique scraping** : Explorez nos moyennes journalières  
-    - 🗺️ **Couverture régionale** : Vérifiez notre présence géographique
-    - 👤 **Inscription gratuite** : Créez votre profil en 2 minutes
+    ÉTAPE 1 - Accès libre
+    - Données pollution de base : Consultez la qualité de l'air
+    - Historique scraping : Explorez nos moyennes journalières  
+    - Couverture régionale : Vérifiez notre présence géographique
+    - Inscription gratuite : Créez votre profil
     
-    ### 🔐 **ÉTAPE 2 (Connexion requise)**
-    - 🚨 **Alertes géolocalisées** : Épisodes pollution temps réel
-    - 🎯 **Conseils personnalisés** : Recommandations adaptées à votre profil
-    - ⚙️ **Gestion compte** : Accès à vos données personnelles
+    ÉTAPE 2 - Connexion requise
+    - Alertes géolocalisées : Épisodes pollution temps réel
+    - Conseils personnalisés : Recommandations adaptées à votre profil
+    - Gestion compte : Accès à vos données personnelles
         
-    ## 📊 **SOURCES DE DONNÉES HYBRIDES**
-    - **PostgreSQL** : Mesures structurées, profils utilisateurs
-    - **MongoDB** : Données géospatiales, scraping temps réel
-    - **CSV Import** : Indices AASQA régionaux
+    SOURCES DE DONNÉES HYBRIDES
+    - PostgreSQL : Mesures structurées, profils utilisateurs
+    - MongoDB : Données géospatiales, scraping temps réel
+    - CSV : Indices AASQA régionaux
     
-    ## 🛡️ **SÉCURITÉ OWASP**
-    - **Rate Limiting** : Protection DDoS différenciée public/privé
-    - **JWT Authentication** : Accès sécurisé aux fonctionnalités
-    - **Input Validation** : Protection injection SQL systématique
+    SÉCURITÉ OWASP
+    - Rate Limiting : Protection DDoS différenciée public/privé
+    - JWT Authentication : Accès sécurisé aux fonctionnalités
+    - Input Validation : Protection injection SQL systématique
     
     """,
     version="2.0.0",
@@ -51,7 +50,7 @@ app.add_middleware(
 # Routes
 app.include_router(auth.router, prefix="/auth", tags=["Authentification"])
 app.include_router(air_quality.router, prefix="/api", tags=["Qualité de l'Air"])
-app.include_router(profils.router, prefix="/api", tags=["Profils & Recommandations"])
+app.include_router(profils.router, prefix="/api", tags=["Profils et Recommandations"])
 
 
 if __name__ == "__main__":
