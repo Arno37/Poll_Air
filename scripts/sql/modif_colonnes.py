@@ -15,9 +15,9 @@ print("Connexion utilisée :", user, password, host, port, database)
 
 engine = create_engine(f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{database}")
 
-table = "indices_qualite_air_consolides"
+table = "assqa_regions"
 colonnes_a_supprimer = [
-    "x_reg", "x_wgs84", "y_reg", "y_wgs84", "gml_id2", "type_zone","id","lib_zone","epsg_reg","date_maj","lib_qual","source"
+    "nb_mesures", "nb_communes"
 ]
 
 with engine.connect() as conn:
@@ -28,4 +28,4 @@ with engine.connect() as conn:
         except Exception as e:
             print(f"Erreur lors de la suppression de {col} : {e}")
     conn.commit()
-    print("✅ Suppression terminée !") 
+    print("✅ Suppression terminée !")

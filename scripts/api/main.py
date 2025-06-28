@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import air_quality, auth
 from security.rate_limiting import setup_rate_limiting
-from routers import air_quality, auth, profils
+from routers import air_quality, auth, profils, hybride
 
 app = FastAPI(
     title="API Poll'Air - Multi-Sources",
@@ -51,6 +51,7 @@ app.add_middleware(
 app.include_router(auth.router, prefix="/auth", tags=["Authentification"])
 app.include_router(air_quality.router, prefix="/api", tags=["Qualité de l'Air"])
 app.include_router(profils.router, prefix="/api", tags=["Profils et Recommandations"])
+app.include_router(hybride.router, prefix="/api", tags=["Hybride"])
 
 
 if __name__ == "__main__":

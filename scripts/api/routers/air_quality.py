@@ -258,121 +258,52 @@ def get_moyennes_scraping(
 
 
 
-@router.get("/indices-aasqa",
-    summary="📋 Données AASQA CSV",
-    description="🔐 Accès sécurisé aux données AASQA au format CSV - Authentification requise")
+@router.get("/recommandations",
+    summary="📋 Données CSV ",
+    description="🔐 Accès sécurisé aux fichiers CSV de recommandations et seuils personnalisés - Authentification requise")
 @private_rate_limit()
 def get_indices_aasqa_csv(
     request: Request,
-    aasqa: Optional[int] = None,
-    commune: Optional[str] = None,
-    limite: int = 100,
     current_user: dict = Depends(get_current_user)
 ):
-    """Affiche indices AASQA depuis PostgreSQL au format CSV - Accès sécurisé"""
+    """
+    Retourne le contenu des deux fichiers CSV présents dans data/CSV_created :
+    - recommandations_base.csv
+    - seuils_personnalises.csv
+    """
     try:
-        log_api_call("/api/qualite-air/indices-aasqa", current_user["username"], {
-            "aasqa": aasqa,
-            "commune": commune,
-            "limite": limite
-        })
-        
-        conn = psycopg2.connect(**DATABASE_CONFIG)
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
-        # Construction requête avec filtres
-        where_conditions = []
-        params = []
-        
-        if aasqa:
-            where_conditions.append("aasqa = %s")
-            params.append(aasqa)
-            
-        if commune:
-            where_conditions.append("lib_zone ILIKE %s")
-            params.append(f"%{commune}%")
-        
-        where_clause = "WHERE " + " AND ".join(where_conditions) if where_conditions else ""
-        
-        # Requête principale
-        query = f"""
-            SELECT 
-                aasqa,
-                lib_zone as zone,
-                date_ech,
-                lib_qual as qualite_air,
-                coul_qual as couleur_indice,
-                code_qual as code_qualite,
-                x_wgs84 as longitude,
-                y_wgs84 as latitude,
-                source,
-                date_maj
-            FROM indices_qualite_air_consolides 
-            {where_clause}
-            ORDER BY date_ech DESC, lib_zone
-            LIMIT %s
-        """
-        
-        params.append(limite)
-        cursor.execute(query, params)
-        resultats = cursor.fetchall()
-        
-        # Création du CSV en format texte
-        csv_lines = []
-        
-        # En-têtes CSV
-        headers = ['aasqa', 'zone', 'date_ech', 'qualite_air', 'couleur_indice', 
-                  'code_qualite', 'longitude', 'latitude', 'source', 'date_maj']
-        csv_lines.append(','.join(headers))
-        
-        # Données CSV
-        for row in resultats:
-            row_values = [str(row[field]) if row[field] is not None else '' for field in headers]
-            csv_lines.append(','.join(row_values))
-        
-        csv_content = '\n'.join(csv_lines)
-        
-        # Statistiques complémentaires
-        total_query = f"""
-            SELECT COUNT(*) as total
-            FROM indices_qualite_air_consolides 
-            {where_clause.replace('LIMIT %s', '')}        """
-        
-        cursor.execute(total_query, params[:-1])  # Sans le LIMIT
-        total_count = cursor.fetchone()['total']
-        
+        log_api_call("/api/qualite-air/indices-aasqa", current_user["username"], {})
+        base_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../data/CSV_created"))
+        files = [
+            ("recommandations_base.csv", "recommandations_base"),
+            ("seuils_personnalises.csv", "seuils_personnalises")
+        ]
+        result = {}
+        for filename, key in files:
+            file_path = os.path.join(base_path, filename)
+            if not os.path.exists(file_path):
+                result[key] = {"error": f"Fichier {filename} introuvable"}
+                continue
+            with open(file_path, encoding="utf-8") as f:
+                content = f.read()
+                result[key] = content
         return {
-            "source_donnees": "PostgreSQL table indices_qualite_air_consolides",
-            "origine_fichiers": "CSV AASQA consolidés importés",
-            "methode_extraction": "Import CSV → PostgreSQL → API → Format CSV",
+            "source_donnees": "Fichiers CSV_created",
             "acces_securise": {
                 "utilisateur": current_user["username"],
                 "role": current_user.get("role", "user"),
                 "authentification": "JWT requis"
             },
-            "filtres_appliques": {
-                "aasqa": aasqa or "Tous",
-                "commune": commune or "Toutes",
-                "limite": limite
-            },
-            "statistiques": {
-                "total_disponible": total_count,
-                "resultats_affiches": len(resultats),
-                "format": "CSV text"
-            },
-            "donnees_csv": csv_content,
+            "fichiers": result,
             "exemple_usage": {
-                "copier_coller": "Copiez le contenu 'donnees_csv' dans un fichier .csv",
+                "copier_coller": "Copiez le contenu dans un fichier .csv",
                 "excel": "Importez directement dans Excel",
                 "analyse": "Utilisez avec pandas, R, ou autres outils data"
             }
         }
-        
     except Exception as e:
-        log_api_call("/api/qualite-air/indices-aasqa", current_user["username"], {
-            "aasqa": aasqa
-        }, success=False)
-        raise HTTPException(status_code=500, detail=f"Erreur PostgreSQL indices_qualite_air_consolides: {str(e)}")
+        log_api_call("/api/qualite-air/indices-aasqa", current_user["username"], {}, success=False)
+        raise HTTPException(status_code=500, detail=f"Erreur lecture fichiers CSV: {str(e)}")
     finally:
         if 'cursor' in locals():
             cursor.close()
